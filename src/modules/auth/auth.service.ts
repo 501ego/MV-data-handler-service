@@ -4,10 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { ClientsService } from '../clients/clients.service'
-import { createCipheriv, randomBytes, scrypt as _scrypt } from 'crypto'
-import { promisify } from 'util'
-
-const scrypt = promisify(_scrypt)
+import * as bcrypt from 'bcrypt'
 
 @Injectable()
 export class AuthService {
@@ -18,10 +15,11 @@ export class AuthService {
     if (clients) {
       throw new ConflictException('email in use')
     }
-    const salt = randomBytes(8).toString('hex')
-    const hash = (await scrypt(password, salt, 32)) as Buffer
-    const result = salt + '.' + hash.toString('hex')
-    const client = await this.clientsService.create(name, email, result)
+
+    const saltOrRounds = 10
+    const hash = await bcrypt.hash(password, saltOrRounds)
+    const client = await this.clientsService.create(name, email, hash)
+
     return client
   }
 
@@ -30,11 +28,12 @@ export class AuthService {
     if (!client) {
       throw new NotFoundException('invalid email')
     }
-    const [salt, storedHash] = client.password.split('.')
-    const hash = (await scrypt(password, salt, 32)) as Buffer
-    if (storedHash !== hash.toString('hex')) {
+
+    const isMatch = await bcrypt.compare(password, client.password)
+    if (!isMatch) {
       throw new ConflictException('bad password')
     }
+
     return client
   }
 }

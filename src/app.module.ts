@@ -7,8 +7,12 @@ import {
 import { APP_PIPE } from '@nestjs/core'
 import { ConfigModule } from '@nestjs/config'
 import { ClientsModule } from './modules/clients/clients.module'
+import { OrdersModule } from './modules/orders/orders.module'
+import { ItemsModule } from './modules/items/items.module'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { Client } from './modules/clients/entities/client.entity'
+import { Order } from './modules/orders/entities/order.entity'
+import { Item } from './modules/items/entities/item.entity'
 import cookieSession = require('cookie-session')
 import { APP_INTERCEPTOR } from '@nestjs/core'
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor'
@@ -24,11 +28,13 @@ import { TraceMiddleware } from './commons/middlewares/trace.middleware'
           type: 'sqlite',
           database: 'db.sqlite',
           synchronize: true,
-          entities: [Client],
+          entities: [Client, Order, Item],
         }
       },
     }),
     ClientsModule,
+    ItemsModule,
+    OrdersModule,
   ],
   providers: [
     {
