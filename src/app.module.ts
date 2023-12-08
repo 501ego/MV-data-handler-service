@@ -1,40 +1,31 @@
-import {
-  Module,
-  MiddlewareConsumer,
-  ValidationPipe,
-  RequestMethod,
-} from '@nestjs/common'
-import { APP_PIPE } from '@nestjs/core'
+import { Module, ValidationPipe } from '@nestjs/common'
+import { APP_PIPE, APP_INTERCEPTOR } from '@nestjs/core'
 import { ConfigModule } from '@nestjs/config'
 import { ClientsModule } from './modules/clients/clients.module'
-import { OrdersModule } from './modules/orders/orders.module'
-import { ItemsModule } from './modules/items/items.module'
+import { LoansModule } from './modules/loans/loans.module'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { Client } from './modules/clients/entities/client.entity'
-import { Order } from './modules/orders/entities/order.entity'
-import { Item } from './modules/items/entities/item.entity'
-import cookieSession = require('cookie-session')
-import { APP_INTERCEPTOR } from '@nestjs/core'
+import { Loan } from './modules/loans/entities/loan.entity'
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor'
-import { LoggerMiddleware } from './commons/middlewares/logger.middleware'
-import { TraceMiddleware } from './commons/middlewares/trace.middleware'
-
+import { RabbitMqTraceInterceptor } from './commons/interceptors/trace.interceptor'
+import { RpcLoggerInterceptor } from './commons/interceptors/logger.interceptor'
 @Module({
   imports: [
     ConfigModule.forRoot({}),
     TypeOrmModule.forRootAsync({
-      useFactory: () => {
-        return {
-          type: 'sqlite',
-          database: 'db.sqlite',
-          synchronize: true,
-          entities: [Client, Order, Item],
-        }
-      },
+      useFactory: () => ({
+        type: 'postgres',
+        host: process.env.POSTGRES_HOST,
+        port: +process.env.POSTGRES_PORT,
+        username: process.env.POSTGRES_USER,
+        password: process.env.POSTGRES_PASSWORD,
+        database: process.env.POSTGRES_DB,
+        synchronize: true,
+        entities: [Client, Loan],
+      }),
     }),
     ClientsModule,
-    ItemsModule,
-    OrdersModule,
+    LoansModule,
   ],
   providers: [
     {
@@ -48,13 +39,11 @@ import { TraceMiddleware } from './commons/middlewares/trace.middleware'
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RpcLoggerInterceptor,
+    },
+    RabbitMqTraceInterceptor,
   ],
 })
-export class AppModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(cookieSession({ keys: ['asdf'] })).forRoutes('*')
-    consumer
-      .apply(TraceMiddleware, LoggerMiddleware)
-      .forRoutes({ path: '/**', method: RequestMethod.ALL })
-  }
-}
+export class AppModule {}

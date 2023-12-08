@@ -1,93 +1,99 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Session,
-  UseGuards,
-  NotFoundException,
-  Param,
-  Patch,
-  Delete,
-} from '@nestjs/common'
+import { Controller, UseInterceptors } from '@nestjs/common'
 import { Client } from './entities/client.entity'
 import { ClientsService } from './clients.service'
-import { AuthService } from '../auth/auth.service'
 import { CreateClientDto } from './dtos/create-client.dto'
-import { updateClientDto } from './dtos/update-user.dto'
-import { AuthGuard } from '../../commons/guards/auth.guard'
-import { CurrentClient } from './decorators/current-client.decorator'
-import { Serialize } from 'src/commons/interceptors/serialize.interceptor'
-import { ClientDto } from './dtos/client.dto'
+import { UpdateClientDto } from './dtos/update-user.dto'
+import { MessagePattern } from '@nestjs/microservices'
+import { RabbitMqTraceInterceptor } from '../../commons/interceptors/trace.interceptor'
+import { ClientResponseDto } from './dtos/client-response.dto'
 
-@Serialize(ClientDto)
-@Controller('auth')
+@UseInterceptors(RabbitMqTraceInterceptor)
+@Controller()
 export class ClientsController {
-  constructor(
-    private clientsService: ClientsService,
-    private authService: AuthService,
-  ) {}
+  constructor(private clientsService: ClientsService) {}
 
-  @Post('/signup')
-  async create(
-    @Body() body: CreateClientDto,
-    @Session() session: any,
-  ): Promise<Client> {
-    const client = await this.authService.signup(
-      body.name,
-      body.email,
-      body.password,
-    )
-    session.clientId = client.id
-    return client
+  @MessagePattern({ cmd: 'test' })
+  test(data: any) {
+    return this.clientsService.test(data)
   }
 
-  @Get('/whoami')
-  @UseGuards(AuthGuard)
-  whoAmI(@CurrentClient() client: Client): Client {
-    return client
-  }
-
-  @Post('/signin')
-  async signin(@Body() body: CreateClientDto, @Session() session: any) {
-    const client = await this.authService.signin(body.email, body.password)
-    session.clientId = client.id
-    return client
-  }
-
-  @Post('/signout')
-  signout(@Session() session: any) {
-    session.clientId = null
-  }
-
-  @Get('/:id')
-  async findClient(@Param('id') id: string): Promise<Client> {
-    const client = await this.clientsService.findOne(parseInt(id))
-    if (!client) {
-      throw new NotFoundException('Client not found')
+  @MessagePattern({ cmd: 'create-client' })
+  async createClient(data: CreateClientDto): Promise<ClientResponseDto> {
+    try {
+      // The service method now returns a ClientResponseDto instead of the Client entity
+      return await this.clientsService.create(
+        data.name,
+        data.email,
+        data.password,
+      )
+    } catch (error) {
+      // Handle the error appropriately
+      throw error
     }
-    return client
   }
 
-  @Get()
-  findAllClients(): Promise<Client[]> {
-    return this.clientsService.findAll()
-  }
-
-  @Patch('/:id')
-  async updateClient(
-    @Param('id') id: string,
-    @Body() body: updateClientDto,
-  ): Promise<Client> {
-    const client = await this.clientsService.update(parseInt(id), body)
+  @MessagePattern({ cmd: 'find-client-by-email' })
+  async findClientByEmail(data: {
+    email: string
+  }): Promise<{ status: string; data: Client | null }> {
+    const client = await this.clientsService.findOneByEmail(data.email)
     if (!client) {
-      throw new NotFoundException('Client not found')
+      return { status: 'not found', data: null }
     }
-    return client
+    return { status: 'success', data: client }
   }
 
-  @Delete('/:id')
-  async removeClient(@Param('id') id: string): Promise<void> {
-    return this.clientsService.remove(parseInt(id))
+  @MessagePattern({ cmd: 'get-client-by-id' })
+  async findClient(data: {
+    id: number
+  }): Promise<{ status: string; data: Client | null }> {
+    try {
+      const client = await this.clientsService.findOne(data.id)
+      if (!client) {
+        return { status: 'not found', data: null }
+      }
+      return { status: 'success', data: client }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  @MessagePattern({ cmd: 'get-all-clients' })
+  async findAllClients(data: {
+    page?: number
+    limit?: number
+  }): Promise<{ status: string; data: Client[]; pagination?: any }> {
+    const { page = 1, limit = 10 } = data
+    const [clients, total] = await this.clientsService.findAll({
+      take: limit,
+      skip: (page - 1) * limit,
+    })
+    const pagination = { page, limit, total }
+    return { status: 'success', data: clients, pagination }
+  }
+
+  @MessagePattern({ cmd: 'update-client' })
+  async updateClient(data: {
+    id: number
+    clientData: UpdateClientDto
+  }): Promise<{ status: string; data: Client }> {
+    try {
+      const client = await this.clientsService.update(data.id, data.clientData)
+      return { status: 'success', data: client }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  @MessagePattern({ cmd: 'delete-client' })
+  async removeClient(data: {
+    id: number
+  }): Promise<{ status: string; message: string }> {
+    try {
+      await this.clientsService.remove(data.id)
+      return { status: 'success', message: 'Client removed successfully' }
+    } catch (error) {
+      throw error
+    }
   }
 }

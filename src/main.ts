@@ -1,14 +1,22 @@
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
-import { ExceptionFilter } from './commons/filters/exception.filter'
 import { ValidationPipe } from '@nestjs/common'
-import { HttpAdapterHost } from '@nestjs/core'
+import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
-
-  app.useGlobalFilters(new ExceptionFilter(app.get(HttpAdapterHost)))
-
+  const app = await NestFactory.createMicroservice<MicroserviceOptions>(
+    AppModule,
+    {
+      transport: Transport.RMQ,
+      options: {
+        urls: ['amqp://localhost:5672'],
+        queue: 'db_queue',
+        queueOptions: {
+          durable: true,
+        },
+      },
+    },
+  )
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -16,8 +24,6 @@ async function bootstrap() {
       transform: true,
     }),
   )
-
-  await app.listen(3000)
-  console.log(`Application is running on: ${await app.getUrl()}`)
+  await app.listen()
 }
 bootstrap()

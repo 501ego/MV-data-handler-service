@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm'
-import { Order } from '../../orders/entities/order.entity'
+import { Loan } from 'src/modules/loans/entities/loan.entity'
 
 @Entity()
 export class Client {
@@ -15,6 +15,6 @@ export class Client {
   @Column()
   password: string
 
-  @OneToMany(() => Order, (order) => order.client)
-  orders: Order[]
+  @OneToMany(() => Loan, (loan) => loan.client)
+  loans: Loan[]
 }

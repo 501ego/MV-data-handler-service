@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Client } from './entities/client.entity'
+import { ClientResponseDto } from './dtos/client-response.dto'
 
 @Injectable()
 export class ClientsService {
@@ -10,9 +11,20 @@ export class ClientsService {
     private repository: Repository<Client>,
   ) {}
 
-  create(name: string, email: string, password: string) {
+  test(data: any) {
+    return data
+  }
+
+  async create(
+    name: string,
+    email: string,
+    password: string,
+  ): Promise<ClientResponseDto> {
     const client = this.repository.create({ name, email, password })
-    return this.repository.save(client)
+    await this.repository.save(client)
+
+    // Create an instance of ClientResponseDto from the saved Client entity
+    return new ClientResponseDto(client)
   }
 
   findOne(id: number) {
@@ -22,15 +34,23 @@ export class ClientsService {
     return this.repository.findOne({ where: { id } })
   }
 
-  find(email: string) {
-    if (!email) {
-      throw new NotFoundException('Client not found')
+  async findOneByEmail(email: string) {
+    const exist = await this.repository.findOne({ where: { email } })
+    if (!exist) {
+      return null
     }
-    return this.repository.findOne({ where: { email } })
+    return exist
   }
 
-  async findAll() {
-    return this.repository.find()
+  async findAll(options: {
+    take: number
+    skip: number
+  }): Promise<[Client[], number]> {
+    const [clients, total] = await this.repository.findAndCount({
+      take: options.take,
+      skip: options.skip,
+    })
+    return [clients, total]
   }
 
   async update(id: number, attrs: Partial<Client>) {
