@@ -20,7 +20,6 @@ export class ClientsController {
   @MessagePattern({ cmd: 'create-client' })
   async createClient(data: CreateClientDto): Promise<ClientResponseDto> {
     try {
-      // The service method now returns a ClientResponseDto instead of the Client entity
       return await this.clientsService.create(
         data.name,
         data.email,

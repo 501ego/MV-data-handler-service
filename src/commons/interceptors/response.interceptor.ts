@@ -8,7 +8,7 @@ import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 
 @Injectable()
-export class ResponseInterceptor<T> implements NestInterceptor {
+export class ResponseInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     if (context.getType() === 'http') {
       const ctx = context.switchToHttp()

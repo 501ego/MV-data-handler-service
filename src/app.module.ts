@@ -7,8 +7,8 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { Client } from './modules/clients/entities/client.entity'
 import { Loan } from './modules/loans/entities/loan.entity'
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor'
-import { RabbitMqTraceInterceptor } from './commons/interceptors/trace.interceptor'
 import { RpcLoggerInterceptor } from './commons/interceptors/logger.interceptor'
+import { RabbitMQModule } from './modules/publisher/rabbit.module'
 @Module({
   imports: [
     ConfigModule.forRoot({}),
@@ -26,6 +26,7 @@ import { RpcLoggerInterceptor } from './commons/interceptors/logger.interceptor'
     }),
     ClientsModule,
     LoansModule,
+    RabbitMQModule,
   ],
   providers: [
     {
@@ -43,7 +44,6 @@ import { RpcLoggerInterceptor } from './commons/interceptors/logger.interceptor'
       provide: APP_INTERCEPTOR,
       useClass: RpcLoggerInterceptor,
     },
-    RabbitMqTraceInterceptor,
   ],
 })
 export class AppModule {}
