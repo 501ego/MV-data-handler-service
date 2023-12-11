@@ -2,10 +2,11 @@ import { Controller, UseInterceptors } from '@nestjs/common'
 import { Client } from './entities/client.entity'
 import { ClientsService } from './clients.service'
 import { CreateClientDto } from './dtos/create-client.dto'
-import { UpdateClientDto } from './dtos/update-user.dto'
+import { UpdateClientDto } from './dtos/update-client.dto'
 import { MessagePattern } from '@nestjs/microservices'
 import { RabbitMqTraceInterceptor } from '../../commons/interceptors/trace.interceptor'
 import { ClientResponseDto } from './dtos/client-response.dto'
+import { RpcException } from '@nestjs/microservices'
 
 @UseInterceptors(RabbitMqTraceInterceptor)
 @Controller()
@@ -26,8 +27,7 @@ export class ClientsController {
         data.password,
       )
     } catch (error) {
-      // Handle the error appropriately
-      throw error
+      throw new RpcException(error)
     }
   }
 
@@ -53,7 +53,7 @@ export class ClientsController {
       }
       return { status: 'success', data: client }
     } catch (error) {
-      throw error
+      throw new RpcException(error)
     }
   }
 
@@ -80,7 +80,7 @@ export class ClientsController {
       const client = await this.clientsService.update(data.id, data.clientData)
       return { status: 'success', data: client }
     } catch (error) {
-      throw error
+      throw new RpcException(error)
     }
   }
 
@@ -92,7 +92,7 @@ export class ClientsController {
       await this.clientsService.remove(data.id)
       return { status: 'success', message: 'Client removed successfully' }
     } catch (error) {
-      throw error
+      throw new RpcException(error)
     }
   }
 }

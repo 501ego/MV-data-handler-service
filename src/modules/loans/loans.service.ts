@@ -3,22 +3,31 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Loan } from './entities/loan.entity'
 import { CreateLoanDto } from './dtos/create-loan.dto'
-import { UpdateLoanDto } from './dtos/update-loan.dto'
 import { Client } from '../clients/entities/client.entity'
+import { ClientsService } from '../clients/clients.service'
 
 @Injectable()
 export class LoansService {
-  constructor(@InjectRepository(Loan) private repository: Repository<Loan>) {}
+  constructor(
+    @InjectRepository(Loan) private repository: Repository<Loan>,
+    private clientsService: ClientsService,
+  ) {}
 
-  async create(
-    amount: number,
-    interest: number,
-    client: Client,
-  ): Promise<Loan> {
-    const total = amount + (amount * interest) / 100
+  async create(createLoanDto: CreateLoanDto): Promise<Loan> {
+    const client = await this.clientsService.findOne(createLoanDto.clientId)
+    if (!client) {
+      throw new NotFoundException(
+        `Client with ID ${createLoanDto.clientId} not found`,
+      )
+    }
+    const total =
+      createLoanDto.amount +
+      (createLoanDto.amount * createLoanDto.interest) / 100
+
+    // Creating a new loan object
     const loan = this.repository.create({
-      amount,
-      interest,
+      amount: createLoanDto.amount,
+      interest: createLoanDto.interest,
       total,
       client,
       date: new Date(),

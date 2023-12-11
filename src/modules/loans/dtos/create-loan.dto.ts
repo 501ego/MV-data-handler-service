@@ -1,7 +1,8 @@
 import { IsNumber, IsString, IsDate, IsOptional } from 'class-validator'
-import { Client } from 'src/modules/clients/entities/client.entity'
+
 export class CreateLoanDto {
-  client: Client
+  @IsNumber()
+  clientId: number
 
   @IsNumber()
   amount: number

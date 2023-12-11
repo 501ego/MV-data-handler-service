@@ -1,11 +1,19 @@
-import { Expose } from 'class-transformer'
+import { Expose, Type } from 'class-transformer'
 
-export class LoanDto {
+export class ClientDto {
   @Expose()
   id: number
 
   @Expose()
-  client: string
+  name: string
+
+  @Expose()
+  email: string
+}
+
+export class LoanDto {
+  @Expose()
+  id: number
 
   @Expose()
   amount: number
@@ -24,4 +32,8 @@ export class LoanDto {
 
   @Expose()
   payment: number
+
+  @Type(() => ClientDto)
+  @Expose()
+  client: ClientDto
 }

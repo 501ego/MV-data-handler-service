@@ -1,62 +1,66 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  UseGuards,
-  Param,
-  Patch,
-  Delete,
-} from '@nestjs/common'
-
+import { Controller, Body, Param } from '@nestjs/common'
 import { LoansService } from './loans.service'
 import { CreateLoanDto } from './dtos/create-loan.dto'
 import { UpdateLoanDto } from './dtos/update-loan.dto'
-import { AuthGuard } from 'src/commons/guards/auth.guard'
-
 import { CurrentClient } from '../clients/decorators/current-client.decorator'
 import { Client } from '../clients/entities/client.entity'
+import { MessagePattern } from '@nestjs/microservices'
+import { RpcException } from '@nestjs/microservices'
+import { RabbitMqTraceInterceptor } from '../../commons/interceptors/trace.interceptor'
+import { UseInterceptors } from '@nestjs/common'
+import { Serialize } from 'src/commons/interceptors/serialize.interceptor'
+import { LoanDto } from './dtos/loan.dto'
 
-@Controller('loans')
+@UseInterceptors(RabbitMqTraceInterceptor)
+@Controller()
 export class LoansController {
   constructor(private loansService: LoansService) {}
 
-  @Post()
-  @UseGuards(AuthGuard)
-  async create(@Body() body: CreateLoanDto, @CurrentClient() client: Client) {
-    const loan = await this.loansService.create(
-      body.amount,
-      body.interest,
-      client,
-    )
-    return loan
+  @Serialize(LoanDto)
+  @MessagePattern({ cmd: 'create-loan' })
+  async create(data: any) {
+    const createLoanDto: CreateLoanDto = data.createLoanDto
+    try {
+      return await this.loansService.create(createLoanDto)
+    } catch (error) {
+      throw new RpcException(error.message)
+    }
   }
 
-  @Get()
-  @UseGuards(AuthGuard)
+  @MessagePattern({ cmd: 'get-loans' })
   async findAll() {
-    return await this.loansService.findAll()
+    const loans = await this.loansService.findAll()
+    if (!loans) {
+      return { status: 'not found', data: null }
+    }
+    return { status: 'success', data: loans }
   }
 
-  @Get('/client')
-  @UseGuards(AuthGuard)
+  @MessagePattern({ cmd: 'get-loans-by-client' })
   async findByClient(@CurrentClient() client: Client) {
-    return await this.loansService.findByClient(client)
+    const loans = await this.loansService.findByClient(client)
+    if (!loans) {
+      return { status: 'not found', data: null }
+    }
+    return { status: 'success', data: loans }
   }
 
-  @Get(':id')
-  @UseGuards(AuthGuard)
+  @MessagePattern({ cmd: 'get-loan-by-id' })
   async findOne(@Param('id') id: number) {
-    return await this.loansService.findOne(id)
+    const loan = await this.loansService.findOne(id)
+    if (!loan) {
+      return { status: 'not found', data: null }
+    }
+    return { status: 'success', data: loan }
   }
 
-  @Patch(':id')
+  @MessagePattern({ cmd: 'update-loan' })
   //TODO admin guard
   async update(@Param('id') id: number, @Body() body: UpdateLoanDto) {
     return await this.loansService.update(id, body)
   }
 
-  @Delete(':id')
+  @MessagePattern({ cmd: 'delete-loan' })
   //TODO admin guard
   async remove(@Param('id') id: number) {
     return await this.loansService.remove(id)

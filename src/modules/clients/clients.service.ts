@@ -22,8 +22,6 @@ export class ClientsService {
   ): Promise<ClientResponseDto> {
     const client = this.repository.create({ name, email, password })
     await this.repository.save(client)
-
-    // Create an instance of ClientResponseDto from the saved Client entity
     return new ClientResponseDto(client)
   }
 

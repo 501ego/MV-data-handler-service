@@ -13,11 +13,10 @@ export class RabbitMqTraceInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       map((data) => {
-        const traceId = data.traceId || uuidv4()
-        return {
-          ...data,
-          traceId,
+        if (typeof data === 'object' && data !== null && !data.traceId) {
+          data.traceId = uuidv4()
         }
+        return data
       }),
     )
   }

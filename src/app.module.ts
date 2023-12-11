@@ -1,14 +1,17 @@
 import { Module, ValidationPipe } from '@nestjs/common'
-import { APP_PIPE, APP_INTERCEPTOR } from '@nestjs/core'
+import { APP_PIPE, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core'
 import { ConfigModule } from '@nestjs/config'
 import { ClientsModule } from './modules/clients/clients.module'
+import { EmployeesModule } from './modules/employees/employees.module'
 import { LoansModule } from './modules/loans/loans.module'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { Client } from './modules/clients/entities/client.entity'
 import { Loan } from './modules/loans/entities/loan.entity'
+import { Employee } from './modules/employees/entities/employee.entity'
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor'
 import { RpcLoggerInterceptor } from './commons/interceptors/logger.interceptor'
 import { RabbitMQModule } from './modules/publisher/rabbit.module'
+import { RpcExceptionFilter } from './commons/filters/rpc-exception.filter'
 @Module({
   imports: [
     ConfigModule.forRoot({}),
@@ -21,12 +24,13 @@ import { RabbitMQModule } from './modules/publisher/rabbit.module'
         password: process.env.POSTGRES_PASSWORD,
         database: process.env.POSTGRES_DB,
         synchronize: true,
-        entities: [Client, Loan],
+        entities: [Client, Loan, Employee],
       }),
     }),
     ClientsModule,
     LoansModule,
     RabbitMQModule,
+    EmployeesModule,
   ],
   providers: [
     {
@@ -43,6 +47,10 @@ import { RabbitMQModule } from './modules/publisher/rabbit.module'
     {
       provide: APP_INTERCEPTOR,
       useClass: RpcLoggerInterceptor,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: RpcExceptionFilter,
     },
   ],
 })
