@@ -1,9 +1,6 @@
-import { Controller, Body, Param } from '@nestjs/common'
+import { Controller, Param } from '@nestjs/common'
 import { LoansService } from './loans.service'
 import { CreateLoanDto } from './dtos/create-loan.dto'
-import { UpdateLoanDto } from './dtos/update-loan.dto'
-import { CurrentClient } from '../clients/decorators/current-client.decorator'
-import { Client } from '../clients/entities/client.entity'
 import { MessagePattern } from '@nestjs/microservices'
 import { RpcException } from '@nestjs/microservices'
 import { RabbitMqTraceInterceptor } from '../../commons/interceptors/trace.interceptor'
@@ -37,8 +34,8 @@ export class LoansController {
   }
 
   @MessagePattern({ cmd: 'get-loans-by-client' })
-  async findByClient(@CurrentClient() client: Client) {
-    const loans = await this.loansService.findByClient(client)
+  async findByClient(data: { clientId: number }) {
+    const loans = await this.loansService.findByClient(data.clientId)
     if (!loans) {
       return { status: 'not found', data: null }
     }
@@ -46,18 +43,27 @@ export class LoansController {
   }
 
   @MessagePattern({ cmd: 'get-loan-by-id' })
-  async findOne(@Param('id') id: number) {
-    const loan = await this.loansService.findOne(id)
+  async findOne(data: { id: number }) {
+    const loan = await this.loansService.findOne(data.id)
     if (!loan) {
       return { status: 'not found', data: null }
     }
     return { status: 'success', data: loan }
   }
 
+  @MessagePattern({ cmd: 'pay-loan' })
+  async payLoan(data: { id: number; attrs: any }) {
+    const loan = await this.loansService.payLoan(data.id, data.attrs)
+    if (!loan) {
+      throw new RpcException('Loan not found')
+    }
+    return { status: 'success', data: loan }
+  }
+
   @MessagePattern({ cmd: 'update-loan' })
   //TODO admin guard
-  async update(@Param('id') id: number, @Body() body: UpdateLoanDto) {
-    return await this.loansService.update(id, body)
+  async update(data: any) {
+    return await this.loansService.update(data.id, data.attrs)
   }
 
   @MessagePattern({ cmd: 'delete-loan' })

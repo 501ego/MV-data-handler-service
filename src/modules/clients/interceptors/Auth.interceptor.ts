@@ -14,14 +14,12 @@ export class RpcAuthenticationInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const message = context.switchToRpc().getData()
-    const authToken = message.authToken // Suponiendo que el token viene en el mensaje RCP bajo la propiedad `authToken`.
-
+    const authToken = message.authToken
     try {
-      const user = this.jwtService.verify(authToken) // Verifica el token y obtiene el usuario.
-      // Aquí podrías agregar lógica adicional para verificar si el usuario es un admin, por ejemplo.
-      return next.handle() // Continúa con la ejecución si el token es válido.
+      const user = this.jwtService.verify(authToken)
+      return next.handle()
     } catch (error) {
-      throw new UnauthorizedException() // Lanza una excepción si el token es inválido.
+      throw new UnauthorizedException()
     }
   }
 }

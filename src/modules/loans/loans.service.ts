@@ -1,16 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, Inject } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Loan } from './entities/loan.entity'
 import { CreateLoanDto } from './dtos/create-loan.dto'
-import { Client } from '../clients/entities/client.entity'
 import { ClientsService } from '../clients/clients.service'
+import { ClientProxy } from '@nestjs/microservices'
 
 @Injectable()
 export class LoansService {
   constructor(
     @InjectRepository(Loan) private repository: Repository<Loan>,
     private clientsService: ClientsService,
+    @Inject('BUSINESS_CLIENT') private client: ClientProxy,
   ) {}
 
   async create(createLoanDto: CreateLoanDto): Promise<Loan> {
@@ -24,7 +25,6 @@ export class LoansService {
       createLoanDto.amount +
       (createLoanDto.amount * createLoanDto.interest) / 100
 
-    // Creating a new loan object
     const loan = this.repository.create({
       amount: createLoanDto.amount,
       interest: createLoanDto.interest,
@@ -33,7 +33,7 @@ export class LoansService {
       date: new Date(),
       status: 'pending',
     })
-
+    this.client.emit({ cmd: 'loan-created' }, { loan })
     return await this.repository.save(loan)
   }
 
@@ -41,7 +41,8 @@ export class LoansService {
     return await this.repository.find()
   }
 
-  async findByClient(client: Client) {
+  async findByClient(clientId: number) {
+    const client = await this.clientsService.findOne(clientId)
     if (!client) {
       throw new NotFoundException('Client not found')
     }
@@ -63,6 +64,27 @@ export class LoansService {
     }
     Object.assign(loan, attrs)
     return await this.repository.save(loan)
+  }
+
+  async payLoan(id: number, attrs: any) {
+    const loan = await this.findOne(id)
+    if (!loan) {
+      throw new NotFoundException('Loan not found')
+    }
+
+    const { amount } = attrs
+    const total = loan.total - amount
+
+    if (total <= 0) {
+      loan.status = 'paid'
+    }
+
+    loan.total = total
+    loan.payment += amount
+    await this.repository.save(loan)
+
+    this.client.emit({ cmd: 'loan-paid' }, { loan })
+    return loan
   }
 
   async remove(id: number) {
